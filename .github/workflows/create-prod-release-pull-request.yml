@@ -1,0 +1,45 @@
+name: Production Release PR Action
+
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  create-pull-request:
+    name: AutoPullRequest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract branch name
+        id: extract_branch
+        shell: bash
+        run: |
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
+      - name: Create Pull Request
+        id: create_pr
+        uses: vsoch/pull-request-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PULL_REQUEST_TITLE: "Auto PR for Production Release"
+          PULL_REQUEST_BRANCH: main
+          branch: develop
+          PULL_REQUEST_BODY: |
+            # Backend Production Release
+
+            ## Changelog:
+            <-- Please tag responsible users with @ -->
+            - User 1
+            - User 2
+            <-- Please add the list of changes here with # -->
+            - Change 1
+            - Change 2
+
+      - name: Show PR info
+        run: |
+          echo "Pull Request Number: ${{ steps.create_pr.outputs.pull_request_number }}"
+          echo "Pull Request URL: ${{ steps.create_pr.outputs.pull_request_url }}"

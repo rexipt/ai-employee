@@ -1,0 +1,22 @@
+# Dev/test sources
+test/
+dist-test/
+
+# Local tooling and artifacts
+scripts/
+*.tgz
+
+# Environment/local files
+.env
+.env.local
+.env.*
+
+# Dependency and editor folders
+node_modules/
+.idea/
+.vscode/
+
+# TypeScript sources (publish compiled CLI)
+src/
+tsconfig.json
+tsconfig.test.json

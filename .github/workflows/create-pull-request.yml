@@ -1,0 +1,97 @@
+name: Auto PR Action
+
+on:
+  push:
+    branches-ignore:
+      - main
+      - develop
+      - test-**
+
+jobs:
+  create-pull-request:
+    name: AutoPullRequest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Git config
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Extract Jira ticket
+        id: extract_jira
+        shell: bash
+        run: |
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          JIRA_TICKET=$(echo "$BRANCH_NAME" | grep -oEi '[A-Z]+-[0-9]+' | tr '[:lower:]' '[:upper:]')
+          echo "ticket=$JIRA_TICKET" >> $GITHUB_OUTPUT
+
+      - name: Echo Jira link
+        run: |
+          echo "🔗 Jira: https://rexipt.atlassian.net/browse/${{ steps.extract_jira.outputs.ticket }}"
+
+      - name: Create Pull Request
+        id: create_pr
+        uses: vsoch/pull-request-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PULL_REQUEST_TITLE: "Auto PR from branch ${{ steps.extract_jira.outputs.branch }}"
+          PULL_REQUEST_BODY: |
+            # Jira
+            The Jira ticket issue is BE-xxx
+            - [ ] My branch name and  commit message reference Jira ticket
+            - [ ] My commit message shows the changes implemmented
+
+            # Description
+
+            Please include a summary of the changes and the related issue. Please also include relevant motivation and context. List any dependencies that are required for this change.
+
+            Fixes # (issue)
+
+            ## Type of change
+
+            Please mark relevant options.
+
+            - [ ] Bug fix (non-breaking change which fixes an issue)
+            - [ ] New feature (non-breaking change which adds functionality)
+            - [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
+            - [ ] This change requires a documentation update
+
+            # How Has This Been Tested?
+
+            Please describe the tests that you ran to verify your changes. Provide instructions so we can reproduce. Please also list any relevant details for your test configuration
+
+            - [ ] Test A
+            - [ ] Test B
+
+            **Test Configuration**:
+            * Firmware version:
+            * Hardware:
+            * Toolchain:
+            * SDK:
+
+            # Checklist:
+
+            - [ ] My code follows the style guidelines of this project
+            - [ ] I have performed a self-review of my code
+            - [ ] I have commented my code, particularly in hard-to-understand areas
+            - [ ] I have made corresponding changes to the documentation
+            - [ ] My changes generate no new warnings
+            - [ ] I have added tests that prove my fix is effective or that my feature works
+            - [ ] New and existing unit tests pass locally with my changes
+            - [ ] Any dependent changes have been merged and published in downstream modules
+
+            # Additional comments
+            - If you have any additional comments to help the PR review process please put here
+
+          branch: ${{ steps.extract_jira.outputs.branch }}
+          PULL_REQUEST_BRANCH: develop
+          PULL_REQUEST_DRAFT: true
+
+      - name: Show PR info
+        run: |
+          echo "Pull Request Number: ${{ steps.create_pr.outputs.pull_request_number }}"
+          echo "Pull Request URL: ${{ steps.create_pr.outputs.pull_request_url }}"
