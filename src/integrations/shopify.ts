@@ -15,6 +15,23 @@ interface ShopifyOrder {
     first_name?: string;
     last_name?: string;
   };
+  line_items?: ShopifyLineItem[];
+}
+
+interface ShopifyLineItem {
+  id: number;
+  product_id: number;
+  title: string;
+  quantity: number;
+  price: string;
+}
+
+export interface TopSellingProduct {
+  productId: number;
+  title: string;
+  totalRevenue: number;
+  totalQuantity: number;
+  orderCount: number;
 }
 
 export interface ShopifyCustomerOrderStat {
@@ -76,15 +93,20 @@ export class ShopifyIntegration {
     createdAtMax: string;
     limit?: number;
     includeCustomer?: boolean; // Only include customer data if explicitly needed
+    includeLineItems?: boolean; // Include line items for product analysis
   }): Promise<ShopifyOrder[]> {
     if (!this.isReady()) {
       return [];
     }
 
-    // Only include customer field if explicitly requested (requires protected customer data access)
-    const fields = params.includeCustomer
-      ? "id,created_at,total_price,financial_status,currency,customer,cancelled_at"
-      : "id,created_at,total_price,financial_status,currency,cancelled_at";
+    // Build fields list based on what data is needed
+    let fields = "id,created_at,total_price,financial_status,currency,cancelled_at";
+    if (params.includeCustomer) {
+      fields += ",customer";
+    }
+    if (params.includeLineItems) {
+      fields += ",line_items";
+    }
 
     const qs = new URLSearchParams({
       status: "any",
@@ -253,6 +275,84 @@ export class ShopifyIntegration {
 
     return {
       customers: [...map.values()],
+      source: "shopify-api",
+    };
+  }
+
+  async getTopSellingProducts(options: {
+    lookbackDays?: number;
+    limit?: number;
+  } = {}): Promise<{ products: TopSellingProduct[]; source: string }> {
+    const lookbackDays = options.lookbackDays ?? 30;
+    const limit = options.limit ?? 10;
+
+    if (!this.isReady()) {
+      return { products: [], source: "shopify-not-configured" };
+    }
+
+    const now = new Date();
+    const pastDate = new Date(now);
+    pastDate.setDate(pastDate.getDate() - lookbackDays);
+
+    const orders = await this.fetchOrders({
+      createdAtMin: toIsoDate(pastDate),
+      createdAtMax: toIsoDate(now),
+      limit: 250,
+      includeLineItems: true,
+    });
+
+    // Aggregate product sales from line items
+    const productMap = new Map<number, {
+      productId: number;
+      title: string;
+      totalRevenue: number;
+      totalQuantity: number;
+      orderIds: Set<number>;
+    }>();
+
+    for (const order of orders) {
+      // Skip cancelled orders
+      if (order.cancelled_at) continue;
+      // Skip non-paid orders
+      if (!["paid", "partially_paid"].includes(order.financial_status)) continue;
+
+      const lineItems = order.line_items || [];
+      for (const item of lineItems) {
+        if (!item.product_id) continue;
+
+        const existing = productMap.get(item.product_id);
+        const itemRevenue = parseNumber(item.price) * item.quantity;
+
+        if (existing) {
+          existing.totalRevenue += itemRevenue;
+          existing.totalQuantity += item.quantity;
+          existing.orderIds.add(order.id);
+        } else {
+          productMap.set(item.product_id, {
+            productId: item.product_id,
+            title: item.title,
+            totalRevenue: itemRevenue,
+            totalQuantity: item.quantity,
+            orderIds: new Set([order.id]),
+          });
+        }
+      }
+    }
+
+    // Sort by revenue and limit
+    const sortedProducts = [...productMap.values()]
+      .map(p => ({
+        productId: p.productId,
+        title: p.title,
+        totalRevenue: p.totalRevenue,
+        totalQuantity: p.totalQuantity,
+        orderCount: p.orderIds.size,
+      }))
+      .sort((a, b) => b.totalRevenue - a.totalRevenue)
+      .slice(0, limit);
+
+    return {
+      products: sortedProducts,
       source: "shopify-api",
     };
   }

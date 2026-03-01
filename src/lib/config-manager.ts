@@ -182,6 +182,11 @@ export function createDefaultConfig(): AppConfig {
         apiVersion: "202312",
       },
     },
+    storeProfile: {
+      niche: "ecommerce",
+      targetMargin: 0.40,
+      constraints: [],
+    },
     skills: {
       dailyBriefing: { enabled: true, schedule: "0 7 * * *" },
       anomalyDetection: {

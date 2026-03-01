@@ -6,7 +6,7 @@ import { ActionItem, ActionStatus, BaselineMetric, SkillId, SkillRunLog } from "
 
 const defaultDataDir = path.join(os.homedir(), ".rexipt", "ai-employee");
 const defaultDbPath = path.join(defaultDataDir, "runtime.db");
-const DB_SCHEMA_VERSION = 4;
+const DB_SCHEMA_VERSION = 5;
 
 function ensureDataDir(dirPath: string): void {
   if (!fs.existsSync(dirPath)) {
@@ -89,6 +89,18 @@ export class RunHistoryStore {
         CREATE INDEX IF NOT EXISTS idx_action_queue_created_at ON action_queue(created_at DESC);
       `);
       this.db.pragma("user_version = 4");
+    }
+
+    if (currentVersion < 5) {
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS store_cache (
+          cache_key TEXT PRIMARY KEY,
+          data_json TEXT NOT NULL,
+          fetched_at TEXT NOT NULL,
+          ttl_ms INTEGER NOT NULL
+        );
+      `);
+      this.db.pragma("user_version = 5");
     }
 
     const finalVersion = Number(this.db.pragma("user_version", { simple: true }) || 0);
@@ -228,5 +240,50 @@ export class RunHistoryStore {
     );
 
     return result.changes > 0;
+  }
+
+  // Store cache methods
+  setCache<T>(key: string, data: T, ttlMs: number): void {
+    const stmt = this.db.prepare(`
+      INSERT INTO store_cache (cache_key, data_json, fetched_at, ttl_ms)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(cache_key) DO UPDATE SET
+        data_json = excluded.data_json,
+        fetched_at = excluded.fetched_at,
+        ttl_ms = excluded.ttl_ms
+    `);
+    stmt.run(key, JSON.stringify(data), new Date().toISOString(), ttlMs);
+  }
+
+  getCache<T>(key: string): { data: T; fetchedAt: Date; ttlMs: number } | null {
+    const stmt = this.db.prepare(`
+      SELECT data_json, fetched_at as fetchedAt, ttl_ms as ttlMs
+      FROM store_cache
+      WHERE cache_key = ?
+    `);
+    const row = stmt.get(key) as { data_json: string; fetchedAt: string; ttlMs: number } | undefined;
+    
+    if (!row) return null;
+
+    const fetchedAt = new Date(row.fetchedAt);
+    const age = Date.now() - fetchedAt.getTime();
+    
+    // Return null if expired
+    if (age >= row.ttlMs) return null;
+
+    return {
+      data: JSON.parse(row.data_json) as T,
+      fetchedAt,
+      ttlMs: row.ttlMs,
+    };
+  }
+
+  invalidateCache(key: string): void {
+    const stmt = this.db.prepare(`DELETE FROM store_cache WHERE cache_key = ?`);
+    stmt.run(key);
+  }
+
+  invalidateAllCache(): void {
+    this.db.exec(`DELETE FROM store_cache`);
   }
 }

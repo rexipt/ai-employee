@@ -1,10 +1,10 @@
 import { AppConfig, SkillId, SkillResult } from "../types";
-import { AnomalyDetectionSkill } from "../skills/anomaly-detection";
-import { CompetitorIntelSkill } from "../skills/competitor-intel";
-import { CreativeStrategySkill } from "../skills/creative-strategy";
-import { CustomerSegmentationSkill } from "../skills/customer-segmentation";
-import { DailyBriefingSkill } from "../skills/daily-briefing";
-import { WeeklyPLSkill } from "../skills/weekly-pl";
+import { AnomalyDetectionSkill } from "../skill-runners/anomaly-detection";
+import { CompetitorIntelSkill } from "../skill-runners/competitor-intel";
+import { CreativeStrategySkill } from "../skill-runners/creative-strategy";
+import { CustomerSegmentationSkill } from "../skill-runners/customer-segmentation";
+import { DailyBriefingSkill } from "../skill-runners/daily-briefing";
+import { WeeklyPLSkill } from "../skill-runners/weekly-pl";
 import { SlackNotifier } from "../notifications/slack";
 
 export class SkillRunner {
