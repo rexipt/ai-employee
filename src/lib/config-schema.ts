@@ -80,6 +80,11 @@ export const AppConfigSchema = z.object({
     }),
   }),
   skills: z.record(z.string(), SkillConfigSchema),
+  storeProfile: z.object({
+    niche: z.string().optional(),
+    targetMargin: z.number().min(0).max(1).optional(),
+    constraints: z.array(z.string()).optional(),
+  }).optional(),
   notifications: z.object({
     slack: z.object({
       enabled: z.boolean(),

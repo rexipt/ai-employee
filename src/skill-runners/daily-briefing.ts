@@ -12,6 +12,8 @@ import { getLast24HoursRangeUtc, getYesterdayRangeUtc } from "../utils/date-rang
 import { validateDailyBriefingOutput } from "../validation/output-validator";
 import { LlmClient } from "../ai/llm-client";
 import { DailyBriefingInsightsSchema } from "../ai/llm-schemas";
+import { getStoreData } from "../lib/store-cache";
+import { loadSkillPrompt } from "../lib/skill-loader";
 
 export class DailyBriefingSkill {
   readonly id = "dailyBriefing" as const;
@@ -95,10 +97,13 @@ export class DailyBriefingSkill {
       flowRevenue: klaviyo.flowRevenue,
     });
 
+    // Load store context and skill template - MD templates are required, no hardcoded fallbacks
+    const storeData = await getStoreData(this.shopify, this.config);
+    const systemPrompt = await loadSkillPrompt(this.id, storeData, this.config);
+
     const llmResponse = await this.llm.completeStructured<{ insights: string[] }>({
       schema: DailyBriefingInsightsSchema,
-      systemPrompt:
-        "You are an ecommerce performance analyst. Analyze the provided metrics and return a JSON object with an 'insights' array containing 3-5 concise, prioritized recommendations. Each insight must be a plain string (not an object). Example format: {\"insights\": [\"First recommendation here\", \"Second recommendation here\"]}",
+      systemPrompt,
       userPrompt: [
         `Organization: ${this.config.organization.name || "Unknown"}`,
         `Revenue: ${totalRevenue.toFixed(2)}`,

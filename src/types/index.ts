@@ -128,6 +128,11 @@ export interface AppConfig {
       defaultCogsRate: number;
     };
   };
+  storeProfile?: {
+    niche?: string;
+    targetMargin?: number;
+    constraints?: string[];
+  };
 }
 
 export interface RuntimeState {
