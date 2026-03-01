@@ -1,0 +1,72 @@
+name: Publish To npm
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: npm-publish-main
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Test Suite
+        run: npm run test
+
+      - name: Run Package Check
+        run: npm run pack:check
+
+      - name: Check Published Version
+        id: check_version
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const { execSync } = require('node:child_process');
+          const pkg = require('./package.json');
+
+          let shouldPublish = true;
+          try {
+            const out = execSync(`npm view "${pkg.name}@${pkg.version}" version`, {
+              stdio: ['ignore', 'pipe', 'ignore'],
+              encoding: 'utf8',
+            }).trim();
+            if (out === pkg.version) {
+              shouldPublish = false;
+            }
+          } catch {
+            shouldPublish = true;
+          }
+
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `package_name=${pkg.name}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `package_version=${pkg.version}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `should_publish=${shouldPublish}\n`);
+          NODE
+
+      - name: Publish
+        if: steps.check_version.outputs.should_publish == 'true'
+        run: npm publish --access public
+
+      - name: Skip Publish (Version Exists)
+        if: steps.check_version.outputs.should_publish != 'true'
+        run: |
+          echo "Skipping publish: ${{ steps.check_version.outputs.package_name }}@${{ steps.check_version.outputs.package_version }} already exists."

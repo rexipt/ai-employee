@@ -1,0 +1,65 @@
+{
+  "name": "@rexipt/ai-employee",
+  "version": "0.2.0",
+  "description": "AI-powered business intelligence CLI for ecommerce operators",
+  "bin": {
+    "rexipt-ai": "dist/cli/index.js",
+    "rai": "dist/cli/index.js"
+  },
+  "files": [
+    "dist",
+    "skills"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/cli/index.ts",
+    "cfg:path": "npm run dev -- config --path",
+    "cfg:validate": "npm run dev -- config --validate",
+    "cfg:list-secrets": "npm run dev -- config --list-secrets",
+    "cfg:list-keys": "npm run dev -- config --list-keys",
+    "cfg:set": "npm run dev -- config set",
+    "cfg:reset-secret": "npm run dev -- config --reset-secret",
+    "cfg:set-secret": "npm run dev -- config set-secret",
+    "start": "node dist/cli/index.js",
+    "status": "node dist/cli/index.js status",
+    "run:once": "node dist/cli/index.js start --once",
+    "test": "npm run build && tsc -p tsconfig.test.json && node --test dist-test/test/**/*.test.js",
+    "preflight": "npm run test",
+    "doctor": "node dist/cli/index.js doctor",
+    "pack:check": "node scripts/pack-check.js",
+    "release:prepare": "npm run preflight && npm run pack:check",
+    "release:dry-run": "npm run release:prepare && npm publish --access public --dry-run",
+    "release:publish": "npm run release:prepare && npm publish --access public"
+  },
+  "keywords": [
+    "ai",
+    "ecommerce",
+    "analytics",
+    "cli",
+    "shopify",
+    "klaviyo"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "commander": "^14.0.1",
+    "node-cron": "^4.2.1",
+    "dotenv": "^16.5.0",
+    "zod": "^3.23.8",
+    "prompts": "^2.4.2",
+    "boxen": "^8.0.1",
+    "chalk": "^4.1.2",
+    "handlebars": "^4.7.8"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.13.10",
+    "tsx": "^4.20.5",
+    "typescript": "^5.8.3",
+    "@types/node-cron": "^3.0.11",
+    "@types/prompts": "^2.4.9"
+  }
+}
